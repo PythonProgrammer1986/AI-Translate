@@ -14,21 +14,39 @@ export async function processDocx(file: File, onProgress: (msg: string) => void)
 
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(docXml, "application/xml");
-    const textNodes = xmlDoc.getElementsByTagName("w:t");
-
+    
+    // Process text by paragraph rather than isolated w:t nodes because words are often split across nodes
+    const paragraphs = xmlDoc.getElementsByTagName("w:p");
+    
+    const pData: { p: Element, original: string, tNodes: Element[] }[] = [];
     const texts: string[] = [];
-    for (let i = 0; i < textNodes.length; i++) {
-        texts.push(textNodes[i].textContent || "");
+
+    for (let i = 0; i < paragraphs.length; i++) {
+        const p = paragraphs[i];
+        const tNodes = Array.from(p.getElementsByTagName("w:t"));
+        if (tNodes.length > 0) {
+            const original = tNodes.map(t => t.textContent || "").join("");
+            if (original.trim().length > 0 && /[a-zA-ZäöüåÄÖÜÅ]/.test(original)) {
+                 pData.push({ p, original, tNodes });
+                 texts.push(original);
+            }
+        }
     }
 
-    onProgress(`Translating ${texts.length} text segments...`);
+    onProgress(`Translating ${texts.length} paragraphs/segments...`);
     const translatedTexts = await batchTranslate(texts);
 
     onProgress("Rebuilding Word document...");
-    for (let i = 0; i < textNodes.length; i++) {
-        if (translatedTexts[i] !== undefined) {
-            textNodes[i].textContent = translatedTexts[i];
-        }
+    for (let i = 0; i < pData.length; i++) {
+         const translated = translatedTexts[i];
+         if (translated !== undefined) {
+             const { tNodes } = pData[i];
+             // Put the entire translated text in the first text node, clear the rest
+             tNodes[0].textContent = translated;
+             for (let j = 1; j < tNodes.length; j++) {
+                  tNodes[j].textContent = "";
+             }
+         }
     }
 
     const serializer = new XMLSerializer();

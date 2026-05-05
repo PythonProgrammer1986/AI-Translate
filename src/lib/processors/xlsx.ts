@@ -14,7 +14,8 @@ export async function processXlsx(file: File, onProgress: (msg: string) => void)
         for (const cellAddress in sheet) {
             if (cellAddress[0] === '!') continue;
             const cell = sheet[cellAddress];
-            if (cell && cell.t === 's' && cell.v && typeof cell.v === 'string') {
+            // Only translate strings containing letters
+            if (cell && typeof cell.v === 'string' && /[a-zA-ZäöüåÄÖÜÅ]/.test(cell.v)) {
                 cellsToTranslate.push({ cell, original: cell.v });
                 texts.push(cell.v);
             }

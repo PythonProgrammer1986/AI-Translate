@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 const getAiClient = () => {
     const key = localStorage.getItem('CUSTOM_GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
@@ -36,15 +36,16 @@ export async function batchTranslate(texts: string[]): Promise<string[]> {
          return chunk;
     }
 
-    const payloadText = JSON.stringify(chunk);
+    const payloadObjects = chunk.map((text, index) => ({ id: index, text: String(text) }));
+    const payloadText = JSON.stringify(payloadObjects);
 
-    const prompt = `You are an expert Swedish-to-English translator. Translate the following JSON array of strings from Swedish into English.
-    - If a string is in Swedish, translate it to English naturally and accurately.
-    - Maintain the EXACT same array length and order. This is critical.
-    - Do NOT translate names, numbers, URLs, formatting tags, or formulas.
-    - If a string is already in English or not translatable, leave it EXACTLY as is.
-    - Respond ONLY with the raw JSON array format: ["translated 1", "translated 2"]. DO NOT wrap the output in markdown code blocks (\`\`\`).
+    const prompt = `You are an expert Swedish-to-English translator. Translate the following JSON array of objects.
+    - Read the 'text' field of each object. If it contains Swedish or another foreign language, translate it to English natively.
+    - If it's already English, numbers, formulas, or untranslatable, keep it exactly as it is.
+    - You MUST return a JSON array of objects with the exact same 'id' and the translated 'text'.
+    - Do NOT drop any items. Exactly ${chunk.length} items must be returned.
     
+    Input:
     ${payloadText}`;
 
     try {
@@ -53,20 +54,36 @@ export async function batchTranslate(texts: string[]): Promise<string[]> {
            contents: prompt,
            config: {
                responseMimeType: "application/json",
-               temperature: 0.1
+               responseSchema: {
+                   type: Type.ARRAY,
+                   items: {
+                       type: Type.OBJECT,
+                       properties: {
+                           id: { type: Type.INTEGER },
+                           text: { type: Type.STRING }
+                       },
+                       required: ["id", "text"]
+                   }
+               },
+               temperature: 0.05
            }
        });
        
        let jsonStr = response.text || "[]";
        jsonStr = jsonStr.replace(/^```json/m, '').replace(/```$/m, '').trim();
        
-       const parsed = JSON.parse(jsonStr);
-       if (Array.isArray(parsed) && parsed.length === chunk.length) {
-           return parsed;
-       } else {
-           console.warn("Mismatched array length, applying 1:1 fallback where possible");
-           return chunk.map((c, idx) => parsed[idx] || c);
+       const parsed = JSON.parse(jsonStr) as {id: number, text: string}[];
+       const translatedChunk = [...chunk]; // Default to original
+
+       if (Array.isArray(parsed)) {
+           for (const item of parsed) {
+               if (item && typeof item.id === 'number' && item.id >= 0 && item.id < chunk.length && typeof item.text === 'string') {
+                   translatedChunk[item.id] = item.text;
+               }
+           }
        }
+       return translatedChunk;
+
     } catch (err) {
        console.error("Translation error", err);
        return chunk; // fallback safely
@@ -109,3 +126,4 @@ function fileToBase64(file: File): Promise<string> {
         reader.onerror = error => reject(error);
     });
 }
+
