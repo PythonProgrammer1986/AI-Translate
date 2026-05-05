@@ -5,7 +5,7 @@ import { processDocx } from './lib/processors/docx';
 import { processPdf } from './lib/processors/pdf';
 import { processImage } from './lib/processors/image';
 import { FileCard } from './components/FileCard';
-import { FileUp, UploadCloud } from 'lucide-react';
+import { FileUp, UploadCloud, Key, X } from 'lucide-react';
 
 export interface FileTask {
   id: string;
@@ -20,6 +20,18 @@ export default function App() {
   const [tasks, setTasks] = useState<FileTask[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const cancelRef = useRef(false);
+  
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem('CUSTOM_GEMINI_API_KEY') || '');
+
+  const saveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      localStorage.setItem('CUSTOM_GEMINI_API_KEY', apiKeyInput.trim());
+    } else {
+      localStorage.removeItem('CUSTOM_GEMINI_API_KEY');
+    }
+    setShowSettings(false);
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setTasks(prev => {
@@ -145,7 +157,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 md:px-8 font-sans text-gray-900">
        <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-10 text-white flex gap-4 items-center">
+         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-10 text-white flex gap-4 items-center relative">
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <Key className="w-4 h-4" />
+              <span className="hidden sm:inline">Set API Key</span>
+            </button>
             <div className="bg-white/20 p-3 rounded-xl">
                <FileUp className="w-8 h-8" />
             </div>
@@ -154,6 +173,35 @@ export default function App() {
               <p className="text-blue-100 mt-1">Translate documents and images to English. Preserves native format. Max 20 files.</p>
             </div>
          </div>
+
+         {showSettings && (
+           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md relative">
+               <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                 <X className="w-5 h-5" />
+               </button>
+               <h2 className="text-xl font-semibold mb-4 text-gray-800">API Key Settings</h2>
+               <p className="text-sm text-gray-600 mb-4">
+                 Enter your own Gemini API Key. This will be stored locally in your browser. Leave blank to use the default environment key.
+               </p>
+               <input 
+                 type="password" 
+                 value={apiKeyInput}
+                 onChange={(e) => setApiKeyInput(e.target.value)}
+                 placeholder="AIzaSy..."
+                 className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+               />
+               <div className="flex justify-end gap-3">
+                 <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                   Cancel
+                 </button>
+                 <button onClick={saveApiKey} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                   Save Key
+                 </button>
+               </div>
+             </div>
+           </div>
+         )}
 
          <div className="p-8">
             <div

@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
 const getAiClient = () => {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("Missing GEMINI_API_KEY environment variable. Please set it in AI Studio settings.");
+    const key = localStorage.getItem('CUSTOM_GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("Missing GEMINI_API_KEY. Please provide it in the API Key settings.");
     return new GoogleGenAI({ apiKey: key });
 }
 
