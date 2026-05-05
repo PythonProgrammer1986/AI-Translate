@@ -1,0 +1,6 @@
+{
+  "name": "DocTranslator AI",
+  "description": "Translate PDF, Word, Excel, and Image files to English while preserving their native format as much as possible.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
