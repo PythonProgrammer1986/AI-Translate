@@ -13,6 +13,7 @@ export interface FileTask {
   status: 'pending' | 'processing' | 'done' | 'error' | 'cancelled';
   progressMsg: string;
   outputBlob?: Blob;
+  outputExt?: string;
   error?: string;
 }
 
@@ -54,6 +55,8 @@ export default function App() {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'text/csv': ['.csv'],
       'image/*': ['.png', '.jpg', '.jpeg', '.webp']
     }
   } as any);
@@ -83,8 +86,12 @@ export default function App() {
           }
         };
 
-        if (name.endsWith('.xlsx')) {
-          blob = await processXlsx(task.file, setProgress);
+        let outputExt: string | undefined;
+
+        if (name.match(/\.(xlsx|xls|csv)$/)) {
+          const res = await processXlsx(task.file, setProgress);
+          blob = res.blob;
+          outputExt = res.extension;
         } else if (name.endsWith('.docx')) {
           blob = await processDocx(task.file, setProgress);
         } else if (name.endsWith('.pdf')) {
@@ -92,14 +99,15 @@ export default function App() {
         } else if (task.file.type.startsWith('image/')) {
           blob = await processImage(task.file, setProgress);
         } else {
-          throw new Error("Unsupported file type. Need .xlsx, .docx, .pdf or image.");
+          throw new Error("Unsupported file type. Need .xlsx, .xls, .csv, .docx, .pdf or image.");
         }
 
         if (!cancelRef.current) {
           updateTask(task.id, {
             status: 'done',
             progressMsg: 'Completed successfully!',
-            outputBlob: blob
+            outputBlob: blob,
+            outputExt
           });
         }
       } catch (err: any) {
@@ -213,7 +221,7 @@ export default function App() {
               <input {...getInputProps()} />
               <UploadCloud className="w-12 h-12 text-gray-400 mb-4" />
               <p className="text-lg font-medium text-gray-700">Drag & drop documents here, or click to select</p>
-              <p className="text-sm text-gray-500 mt-2">Supports PDF, DOCX, XLSX, and Images</p>
+              <p className="text-sm text-gray-500 mt-2">Supports PDF, DOCX, XLSX, XLS, CSV, and Images</p>
             </div>
 
             {tasks.length > 0 && (

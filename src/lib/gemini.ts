@@ -23,7 +23,7 @@ async function asyncMapLimit<T, R>(items: T[], limit: number, fn: (item: T) => P
 export async function batchTranslate(texts: string[]): Promise<string[]> {
   if (!texts.length) return [];
   const ai = getAiClient();
-  const chunkSize = 100;
+  const chunkSize = 50;
   
   const chunks: string[][] = [];
   for (let i = 0; i < texts.length; i += chunkSize) {
@@ -31,18 +31,19 @@ export async function batchTranslate(texts: string[]): Promise<string[]> {
   }
 
   const results = await asyncMapLimit(chunks, 3, async (chunk) => {
-    const needsTranslation = chunk.some(t => t && String(t).trim().length > 0);
+    const needsTranslation = chunk.some(t => t && String(t).trim().length > 0 && /[a-zA-ZäöüåÄÖÜÅ]/.test(String(t)));
     if (!needsTranslation) {
          return chunk;
     }
 
     const payloadText = JSON.stringify(chunk);
 
-    const prompt = `You are a highly accurate translation system. Translate the following JSON array of strings into English.
-    - Maintain the exact same array length and order.
-    - Do not translate numbers, URLs, or formulas.
-    - If a string is already in English, leave it as is.
-    - Respond ONLY with the raw JSON array. DO NOT wrap the output in markdown code blocks (\`\`\`).
+    const prompt = `You are an expert Swedish-to-English translator. Translate the following JSON array of strings from Swedish into English.
+    - If a string is in Swedish, translate it to English naturally and accurately.
+    - Maintain the EXACT same array length and order. This is critical.
+    - Do NOT translate names, numbers, URLs, formatting tags, or formulas.
+    - If a string is already in English or not translatable, leave it EXACTLY as is.
+    - Respond ONLY with the raw JSON array format: ["translated 1", "translated 2"]. DO NOT wrap the output in markdown code blocks (\`\`\`).
     
     ${payloadText}`;
 
@@ -86,7 +87,7 @@ export async function extractAndTranslateImageOrPDF(file: File): Promise<string>
                  role: 'user',
                  parts: [
                      { inlineData: { mimeType: file.type, data: base64 } },
-                     { text: "Translate all text found in this document/image into English. Provide only the translated English text. Try to maintain the natural paragraph structure." }
+                     { text: "You are an expert Swedish-to-English translator. Translate all text found in this document/image from Swedish to English. Provide ONLY the translated English text. Try to maintain the natural paragraph structure, format, and layout as closely as possible." }
                  ]
              }
          ]

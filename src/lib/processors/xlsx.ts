@@ -1,8 +1,8 @@
 import * as XLSX from 'xlsx';
 import { batchTranslate } from '../gemini';
 
-export async function processXlsx(file: File, onProgress: (msg: string) => void): Promise<Blob> {
-    onProgress("Reading Excel file...");
+export async function processXlsx(file: File, onProgress: (msg: string) => void): Promise<{blob: Blob, extension: string}> {
+    onProgress(`Reading ${file.name}...`);
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
 
@@ -26,11 +26,28 @@ export async function processXlsx(file: File, onProgress: (msg: string) => void)
 
     onProgress("Rebuilding Excel document...");
     translatedTexts.forEach((t, i) => {
-        if (cellsToTranslate[i] && t) {
+        if (cellsToTranslate[i] && t !== undefined) {
             cellsToTranslate[i].cell.v = t;
+            if (cellsToTranslate[i].cell.r) delete cellsToTranslate[i].cell.r; // Remove rich text so value shows
         }
     });
 
-    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    return new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const fileNameLower = file.name.toLowerCase();
+    let bookType: XLSX.BookType = 'xlsx';
+    let mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    let extension = '.xlsx';
+
+    if (fileNameLower.endsWith('.csv')) {
+        bookType = 'csv';
+        mimeType = 'text/csv';
+        extension = '.csv';
+    } else if (fileNameLower.endsWith('.xls')) {
+        // Output as XLSX to Ensure compatibility with free SheetJS but keep data format intact
+        bookType = 'xlsx';
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        extension = '.xlsx';
+    }
+
+    const wbout = XLSX.write(workbook, { bookType, type: 'array' });
+    return { blob: new Blob([wbout], { type: mimeType }), extension };
 }

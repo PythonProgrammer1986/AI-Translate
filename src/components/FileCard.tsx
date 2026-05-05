@@ -8,7 +8,7 @@ export const FileCard: React.FC<{ task: FileTask, onRemove: () => void }> = ({ t
     const name = task.file.name.toLowerCase();
     if (type.includes('image') || name.match(/\.(jpg|jpeg|png|webp)$/)) return <ImageIcon className="w-5 h-5 text-purple-500" />;
     if (type.includes('pdf') || name.endsWith('.pdf')) return <FileText className="w-5 h-5 text-red-500" />;
-    if (name.endsWith('.xlsx')) return <FileSpreadsheet className="w-5 h-5 text-green-500" />;
+    if (name.match(/\.(xlsx|xls|csv)$/)) return <FileSpreadsheet className="w-5 h-5 text-green-500" />;
     if (name.endsWith('.docx')) return <FileText className="w-5 h-5 text-blue-500" />;
     return <FileUp className="w-5 h-5 text-gray-500" />;
   };
@@ -22,7 +22,7 @@ export const FileCard: React.FC<{ task: FileTask, onRemove: () => void }> = ({ t
     // Add prefix
     const nameMatch = task.file.name.match(/^(.*?)(\.[^.]+)?$/);
     const nameWithoutExt = nameMatch?.[1] || task.file.name;
-    const ext = nameMatch?.[2] || '';
+    const ext = task.outputExt || nameMatch?.[2] || '';
     
     a.download = `Translated_${nameWithoutExt}${ext}`;
     document.body.appendChild(a);
